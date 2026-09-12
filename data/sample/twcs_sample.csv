@@ -1,0 +1,21 @@
+tweet_id,author_id,inbound,created_at,text,response_tweet_id,in_response_to_tweet_id
+1,cust1,True,2023-01-01,"@Uber_Support I was charged $47 for a ride that should have been $22, this is ridiculous",2,
+2,Uber_Support,False,2023-01-01,@cust1 Sorry to hear that! Please DM us your trip ID and we'll take a look at the fare right away.,,1.0
+3,cust2,True,2023-01-02,"@Uber_Support left my phone in the car after my ride this morning, how do I get it back?",4,
+4,Uber_Support,False,2023-01-02,"@cust2 No worries, please use the Lost Item option in your trip history in the app to contact your driver.",,3.0
+5,cust3,True,2023-01-03,"@Uber_Support my driver was driving so recklessly I felt unsafe the entire ride, swerving through traffic",6,
+6,Uber_Support,False,2023-01-03,@cust3 We take this very seriously. Please DM us your trip details so we can investigate immediately.,,5.0
+7,cust4,True,2023-01-04,"@Uber_Support driver was so rude to me, refused to help with my bags and was on the phone the whole time",8,
+8,Uber_Support,False,2023-01-04,@cust4 That's not the experience we want for you. Please DM your trip ID so we can follow up with the driver.,,7.0
+9,cust5,True,2023-01-05,"@Uber_Support I can't log into my account, it keeps saying my password is wrong even after resetting",10,
+10,Uber_Support,False,2023-01-05,@cust5 Sorry about that! Please DM the email on your account and we'll help you regain access.,,9.0
+11,cust6,True,2023-01-06,@Uber_Support got charged a cancellation fee but the driver never moved from their spot,12,
+12,Uber_Support,False,2023-01-06,@cust6 Sorry for the trouble! Please DM your trip ID and we'll review the cancellation fee.,,11.0
+13,cust7,True,2023-01-07,@Uber_Support do you guys offer student discounts?,14,
+14,Uber_Support,False,2023-01-07,"@cust7 We don't have a standard student discount, but keep an eye on promotions in the app!",,13.0
+15,cust8,True,2023-01-08,"@Uber_Support the app keeps crashing every time I try to request a ride, using latest iOS",16,
+16,Uber_Support,False,2023-01-08,"@cust8 Sorry about that! Please try reinstalling the app, and DM us your device model if it persists.",,15.0
+17,cust9,True,2023-01-09,@Uber_Support why was I charged double the quoted price for my ride to the airport,18,
+18,Uber_Support,False,2023-01-09,@cust9 We understand the concern. Please DM your trip ID so we can review the fare breakdown.,,17.0
+19,cust10,True,2023-01-10,"@Uber_Support I want a refund, my driver cancelled on me twice in a row and I was late to work",20,
+20,Uber_Support,False,2023-01-10,@cust10 So sorry about that! Please DM your trip details and we'll look into a refund for you.,,19.0
