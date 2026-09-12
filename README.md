@@ -225,5 +225,10 @@ python eval/run_eval.py --golden eval/test_golden_set.csv --threads data/process
 ```
 
 ## License
+<img width="813" height="255" alt="Screenshot 2026-09-12 184439" src="https://github.com/user-attachments/assets/28b45e0a-3cc9-45a4-8939-7974365c2492" />
+
+<img width="1365" height="555" alt="image" src="https://github.com/user-attachments/assets/f3980f23-e9a3-4910-8491-68c2cad9c7c6" />
 
 Optional — add license later if desired.
+<img width="968" height="682" alt="Screenshot 2026-09-12 221843" src="https://github.com/user-attachments/assets/a707b59e-c6e3-47aa-9adb-e734ff7b1f2b" />
+
