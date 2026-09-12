@@ -1,8 +1,7 @@
 # Decision Log
 
-Non-obvious decisions made while building this, and why. (Fill in the
-`[TODO: your number]` placeholders after you run the real eval — these are
-currently placeholders since results depend on the actual 3M-row dataset.)
+Non-obvious decisions made while building this, and why. Evaluation-dependent
+threshold tuning remains pending until the hand-labeled golden set is complete.
 
 1. **Brand: Uber_Support.** Chose it over AmazonHelp/AppleSupport because
    ride-hailing complaints cluster into a small number of clearly distinct,
@@ -31,7 +30,7 @@ currently placeholders since results depend on the actual 3M-row dataset.)
    which shared words drove a match). Embeddings are the natural v2
    upgrade, noted in "what I'd do next."
 
-6. **Reply generator is told to copy the *pattern*, not the specifics**, of
+6. **Reply generator is told to copy the _pattern_, not the specifics**, of
    retrieved historical replies (e.g., "ask for trip ID" is a pattern;
    a specific dollar amount is not). Without this instruction, early manual
    testing showed the model would sometimes carry over specific facts
@@ -49,13 +48,13 @@ currently placeholders since results depend on the actual 3M-row dataset.)
 8. **Escalation confidence threshold set at 0.55**, not tuned end-to-end
    against the golden set at first — started as a reasonable prior and
    should be re-tuned once you have real golden-set precision/recall
-   numbers (`[TODO: your number]` — see report Results section).
+   numbers are available (see report Results section).
 
 9. **Anger-language heuristic is a hardcoded keyword list, not a second LLM
    call**, for the refund+anger escalation rule. Cheaper and faster; a
    second LLM call for sentiment was evaluated as marginal extra value for
-   this narrow use once the keyword list is combined with intent already
-   being correct in eval (`[TODO: your number]`).
+   this narrow use once the keyword list is combined with measured intent
+   performance in eval.
 
 10. **Golden set deliberately oversamples short (<40 char) messages.**
     These are the hardest cases for the intent classifier and are
@@ -65,7 +64,7 @@ currently placeholders since results depend on the actual 3M-row dataset.)
 
 11. **Judge scores on 4 separate dimensions (relevance / grounding / tone /
     actionability) instead of one overall score.** A single number hides
-    *which way* a bad reply is bad, and the failure-analysis section needs
+    _which way_ a bad reply is bad, and the failure-analysis section needs
     that breakdown to produce real hypotheses instead of vague ones.
 
 12. **Judge-human agreement is measured, not assumed.** Following the

@@ -33,7 +33,21 @@ def main():
     args = ap.parse_args()
 
     golden = pd.read_csv(args.golden)
-    golden = golden[golden["gold_intent"].notna() & (golden["gold_intent"] != "")]
+    required_labels = ["gold_intent", "gold_escalate"]
+    missing = [column for column in required_labels if column not in golden.columns]
+    if missing:
+        raise ValueError(f"Golden set is missing required columns: {missing}")
+    golden = golden[
+        golden["gold_intent"].notna()
+        & (golden["gold_intent"] != "")
+        & golden["gold_escalate"].notna()
+        & (golden["gold_escalate"] != "")
+    ]
+    if golden.empty:
+        raise ValueError(
+            "No completed labels found. Fill gold_intent and gold_escalate "
+            "in the golden set before running evaluation."
+        )
     print(f"Evaluating on {len(golden)} hand-labeled golden examples\n")
 
     historical = pd.read_csv(args.threads)
@@ -44,9 +58,12 @@ def main():
         out = agent.handle(row["customer_message"], row.get("thread_context", ""), row["thread_id"])
         agent_results.append(out)
 
+        grounding_examples = agent.index.retrieve(
+            row["customer_message"], k=3, exclude_thread_id=row["thread_id"]
+        )
         j = judge_reply(
             row["customer_message"], out["intent"], out["drafted_reply"],
-            grounding_examples=[],  # kept simple here; pipeline logs example count only
+            grounding_examples=grounding_examples,
         )
         j["thread_id"] = row["thread_id"]
         judge_rows.append(j)

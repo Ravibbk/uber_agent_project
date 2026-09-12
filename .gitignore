@@ -7,7 +7,11 @@ data/raw/
 data/processed/*.csv
 !data/sample/twcs_sample.csv
 eval/golden_set_TO_LABEL.csv
+eval/golden_set_PREFILLED.csv
 eval/golden_set.csv
 eval/judge_scores.csv
 eval/human_judge_subset.csv
+!eval/golden_set.csv
+!eval/judge_scores.csv
+!eval/human_judge_subset.csv
 .DS_Store

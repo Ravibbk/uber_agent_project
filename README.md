@@ -63,6 +63,16 @@ REPLY_MODEL=gpt-4o
 JUDGE_MODEL=gpt-4o
 ```
 
+For a quota-free local demo, run PowerShell with the offline fallbacks:
+
+```powershell
+$env:OFFLINE_MODE="1"
+$env:JUDGE_OFFLINE="1"
+```
+
+This produces rule-based intent/reply suggestions and heuristic judge scores.
+They are useful for smoke testing, but they are not evidence of LLM quality.
+
 ## Kaggle setup for the full dataset
 
 If you want to use the real TWCS dataset, you need a Kaggle API token.
@@ -85,7 +95,7 @@ Then download the dataset:
 kaggle datasets download -d thoughtvector/customer-support-on-twitter -p data/raw --unzip
 ```
 
-This creates `data/raw/twcs.csv`.
+With the current Kaggle CLI, this creates `data/raw/twcs/twcs.csv`.
 
 > If you do not want to use Kaggle, you can still run the sample pipeline using the bundled sample file in `data/sample/twcs_sample.csv`.
 
@@ -103,22 +113,48 @@ python src/pipeline.py --threads data/processed/uber_threads_sample.csv --limit 
 After the Kaggle download step above, run:
 
 ```bash
-python src/data_prep.py --raw data/raw/twcs.csv --out data/processed/uber_threads.csv --sample 5000
+python src/data_prep.py --raw data/raw/twcs/twcs.csv --out data/processed/uber_threads.csv --sample 5000
 python src/pipeline.py --threads data/processed/uber_threads.csv --limit 20 --out data/processed/pipeline_output.csv
 ```
 
 ## Evaluation workflow
 
+The evaluation is intentionally a two-step process. The script creates a
+labeling file; you must hand-label 150-250 examples before reporting results.
+
 ```bash
 python eval/build_golden_set.py --threads data/processed/uber_threads.csv --n 200 --out eval/golden_set_TO_LABEL.csv
 ```
 
-Then label the generated CSV and save it as `eval/golden_set.csv`, then run:
+Open the generated CSV in a spreadsheet and fill in `gold_intent`,
+`gold_escalate`, and optional `labeling_notes` for every row. Save the result
+as `eval/golden_set.csv`, then run:
+
+To speed up review, you can first create transparent rule-based suggestions:
+
+```bash
+python eval/prefill_golden_set.py
+```
+
+This writes `eval/golden_set_PREFILLED.csv`. Review and correct those
+suggestions in a spreadsheet, then save the reviewed file as
+`eval/golden_set.csv`. The suggestions are not human labels and must not be
+submitted without review.
 
 ```bash
 cd eval
 python run_eval.py --golden golden_set.csv --threads ../data/processed/uber_threads.csv
 ```
+
+For judge calibration, hand-score 30-40 of the same rows using the rubric in
+`eval/judge.py`, save them as `eval/human_judge_subset.csv`, and run:
+
+```bash
+python judge_calibration.py
+```
+
+Do not claim full assignment completion until `golden_set.csv`, the evaluation
+output, and `human_judge_subset.csv` contain real human labels and scores.
 
 ## Notes
 

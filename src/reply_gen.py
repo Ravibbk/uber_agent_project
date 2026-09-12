@@ -18,7 +18,8 @@ from intents import fallback_intent_from_message
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key) if api_key else None
+OFFLINE_MODE = os.getenv("OFFLINE_MODE", "0") == "1"
+client = OpenAI(api_key=api_key) if api_key and not OFFLINE_MODE else None
 REPLY_MODEL = os.getenv("REPLY_MODEL", "gpt-4o")
 
 SYSTEM_PROMPT = """You are drafting a reply as Uber's official Twitter support account (@Uber_Support).

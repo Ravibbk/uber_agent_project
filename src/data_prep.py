@@ -110,7 +110,7 @@ def build_uber_threads(df: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--raw", default="data/raw/twcs.csv")
+    ap.add_argument("--raw", default="data/raw/twcs/twcs.csv")
     ap.add_argument("--out", default="data/processed/uber_threads.csv")
     ap.add_argument(
         "--sample", type=int, default=None,

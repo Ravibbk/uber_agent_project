@@ -22,7 +22,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=api_key) if api_key else None
+OFFLINE_MODE = os.getenv("OFFLINE_MODE", "0") == "1"
+client = OpenAI(api_key=api_key) if api_key and not OFFLINE_MODE else None
 CLASSIFY_MODEL = os.getenv("CLASSIFY_MODEL", "gpt-4o-mini")
 
 INTENTS = {
