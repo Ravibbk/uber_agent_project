@@ -1,8 +1,8 @@
 # Decision Log
 
-Non-obvious decisions made while building this, and why. (Fill in the
-`[TODO: your number]` placeholders after you run the real eval — these are
-currently placeholders since results depend on the actual 3M-row dataset.)
+Non-obvious decisions made while building this, and why. Evaluation numbers
+belong in `REPORT.md` after the hand-labeled set is completed; they are not
+fabricated here.
 
 1. **Brand: Uber_Support.** Chose it over AmazonHelp/AppleSupport because
    ride-hailing complaints cluster into a small number of clearly distinct,
@@ -48,14 +48,12 @@ currently placeholders since results depend on the actual 3M-row dataset.)
 
 8. **Escalation confidence threshold set at 0.55**, not tuned end-to-end
    against the golden set at first — started as a reasonable prior and
-   should be re-tuned once you have real golden-set precision/recall
-   numbers (`[TODO: your number]` — see report Results section).
+   should be re-tuned once the real golden-set precision/recall numbers exist.
 
 9. **Anger-language heuristic is a hardcoded keyword list, not a second LLM
    call**, for the refund+anger escalation rule. Cheaper and faster; a
    second LLM call for sentiment was evaluated as marginal extra value for
-   this narrow use once the keyword list is combined with intent already
-   being correct in eval (`[TODO: your number]`).
+   this narrow use    once the keyword list is compared with intent labels in the completed eval.
 
 10. **Golden set deliberately oversamples short (<40 char) messages.**
     These are the hardest cases for the intent classifier and are

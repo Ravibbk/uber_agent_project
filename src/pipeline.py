@@ -33,8 +33,8 @@ def load_threads(path: str) -> pd.DataFrame:
             processed_df = build_uber_threads(raw_df)
             if not processed_df.empty:
                 return processed_df
-        except Exception:
-            pass
+        except (OSError, KeyError, ValueError, pd.errors.ParserError) as exc:
+            raise ValueError(f"Could not parse raw TWCS-style CSV '{path}'.") from exc
 
     raise ValueError(
         f"Input file '{path}' is not in the expected format. "
@@ -84,6 +84,7 @@ def main():
         out = agent.handle(row["customer_message"], row.get("thread_context", ""), row["thread_id"])
         results.append(out)
 
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(results).to_csv(args.out, index=False)
     print(f"Wrote {len(results)} pipeline outputs to {args.out}")
 

@@ -1,138 +1,99 @@
 # Uber Support AI Agent
 
-This project builds a simple customer-support agent for @Uber_Support. It:
+Take-home assignment implementation for Hiver SDE Intern. The agent is scoped to
+`@Uber_Support` and performs three actions for each incoming message:
 
-- classifies each inbound customer message into a support intent
-- retrieves similar past Uber support responses using TF-IDF
-- drafts a short, support-style reply
-- decides whether to auto-handle or escalate
+1. classify it into nine data-derived support intents;
+2. retrieve similar historical Uber resolutions with TF-IDF and draft a reply;
+3. return `AUTO_HANDLE` or `ESCALATE`, with an explicit reason.
 
-The code is intentionally simple and readable so it can be understood and extended without a large ML or backend stack.
+The system is deliberately safe and reproducible: it works offline with
+deterministic fallbacks, and optionally uses OpenAI for classification, reply
+generation, and judging.
 
-## Project overview
+## Quickstart (under 15 minutes)
 
-```text
-uber-support-agent/
-├── src/
-│   ├── data_prep.py      # cleans raw Twitter support data into Uber threads
-│   ├── intents.py        # intent taxonomy and LLM-based classification
-│   ├── retrieval.py      # TF-IDF retrieval of similar historical replies
-│   ├── reply_gen.py      # reply drafting based on retrieved examples
-│   ├── escalation.py     # AUTO_HANDLE vs ESCALATE logic
-│   ├── pipeline.py       # end-to-end agent runner
-│   └── baselines.py      # simple reference baselines
-├── eval/
-│   ├── build_golden_set.py
-│   ├── run_eval.py
-│   ├── judge.py
-│   ├── judge_calibration.py
-├── data/
-│   ├── sample/
-│   │   ├── make_sample.py
-│   │   └── twcs_sample.csv
-│   └── raw/              # optional, not committed to Git
-├── report/
-│   ├── REPORT.md
-│   └── decision_log.md
-├── .env.example
-├── .gitignore
-├── requirements.txt
-├── README.md
-└── LICENSE               # optional if you want to add one later
-```
-
-## Setup
+Requires Python 3.11+ and PowerShell on Windows (use `python` instead of
+`py -3.13` on macOS/Linux).
 
 ```powershell
-cd "C:\Users\LENOVO\Downloads\uber-support-agent"
+py -3.13 -m pip install -r requirements.txt
+py -3.13 src\data_prep.py --raw data\sample\twcs_sample.csv --out data\processed\uber_threads_sample.csv
+py -3.13 src\pipeline.py --threads data\processed\uber_threads_sample.csv --limit 10 --out data\processed\pipeline_sample_output.csv
+```
 
-py -3.13 -m venv venv
-.\venv\Scripts\Activate.ps1
+The last command writes ten agent decisions to
+`data/processed/pipeline_sample_output.csv`. No API key is required for this
+smoke run. The bundled sample contains 10 customer/brand pairs so the example
+is fast, not statistically representative.
 
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+## Optional OpenAI mode
+
+```powershell
 Copy-Item .env.example .env
+# Edit .env and set OPENAI_API_KEY
+py -3.13 src\pipeline.py --threads data\processed\uber_threads_sample.csv --limit 10 --out data\processed\pipeline_openai_output.csv
 ```
 
-Then add your OpenAI key in `.env`:
+Without a key, the classifier and reply generator use the documented offline
+fallbacks. The judge also uses a deterministic smoke rubric; API-backed judge
+scores must be used for the report.
 
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-CLASSIFY_MODEL=gpt-4o-mini
-REPLY_MODEL=gpt-4o
-JUDGE_MODEL=gpt-4o
+## Full TWCS workflow
+
+Download `thoughtvector/customer-support-on-twitter` from Kaggle into
+`data/raw/twcs.csv` (raw data is intentionally gitignored), then run:
+
+```powershell
+py -3.13 src\data_prep.py --raw data\raw\twcs.csv --out data\processed\uber_threads.csv --sample 5000
+py -3.13 eval\build_golden_set.py --threads data\processed\uber_threads.csv --n 200 --out eval\golden_set_TO_LABEL.csv
 ```
 
-## Kaggle setup for the full dataset
+Read every sampled row and fill `gold_intent` and `gold_escalate` using the
+taxonomy and escalation policy in `report/REPORT.md`; save the result as
+`eval/golden_set.csv`. This hand-labeled 150-250 row file is the required
+evaluation artifact and is intentionally not fabricated or committed.
 
-If you want to use the real TWCS dataset, you need a Kaggle API token.
-
-1. Create a Kaggle account at https://www.kaggle.com
-2. Go to your account settings and click "Create New API Token"
-3. Download `kaggle.json`
-4. Place it in:
-   - Windows: `C:\Users\<your-user>\.kaggle\kaggle.json`
-   - macOS/Linux: `~/.kaggle/kaggle.json`
-5. On macOS/Linux, lock down permissions:
-
-```bash
-chmod 600 ~/.kaggle/kaggle.json
+```powershell
+py -3.13 eval\run_eval.py --golden eval\golden_set.csv --threads data\processed\uber_threads.csv
 ```
 
-Then download the dataset:
+For judge calibration, hand-score 30-40 of the same rows using the rubric in
+`eval/judge.py`, save `eval/human_judge_subset.csv`, and run:
 
-```bash
-kaggle datasets download -d thoughtvector/customer-support-on-twitter -p data/raw --unzip
+```powershell
+py -3.13 eval\judge_calibration.py
 ```
 
-This creates `data/raw/twcs.csv`.
+## Repository map
 
-> If you do not want to use Kaggle, you can still run the sample pipeline using the bundled sample file in `data/sample/twcs_sample.csv`.
+- `src/data_prep.py`: cleans TWCS and reconstructs customer/reply pairs.
+- `src/intents.py`: taxonomy, OpenAI classifier, and offline classifier.
+- `src/retrieval.py`: transparent TF-IDF historical-resolution retriever.
+- `src/reply_gen.py`: grounded reply generation and offline templates.
+- `src/escalation.py`: safety-first routing policy.
+- `eval/`: golden-set sampling, baselines, automated metrics, and judge calibration.
+- `report/REPORT.md`: framing, evaluation protocol, limitations, and next steps.
+- `report/decision_log.md`: non-obvious design decisions.
 
-## Run with the sample data
+## Scope and limitations
 
-This is the easiest way to verify the project works locally.
+This is a reply-drafting prototype, not an Uber account-action system. It does
+not issue refunds, authenticate users, manage ongoing dialogue state, or claim
+that the bundled ten-row smoke sample proves production quality. The report
+requires real hand labels and human-vs-judge calibration before any headline
+result should be submitted.
 
-```bash
-python src/data_prep.py --raw data/sample/twcs_sample.csv --out data/processed/uber_threads_sample.csv
-python src/pipeline.py --threads data/processed/uber_threads_sample.csv --limit 10 --out data/processed/pipeline_sample_output.csv
-```
+## Data and citations
 
-## Run with full Kaggle data
+Primary data: [Customer Support on Twitter](https://www.kaggle.com/datasets/thoughtvector/customer-support-on-twitter),
+Kaggle user `thoughtvector`. Raw data is not redistributed here. The project
+uses `scikit-learn` TF-IDF and OpenAI's API only when configured.
 
-After the Kaggle download step above, run:
+## GitHub checklist
 
-```bash
-python src/data_prep.py --raw data/raw/twcs.csv --out data/processed/uber_threads.csv --sample 5000
-python src/pipeline.py --threads data/processed/uber_threads.csv --limit 20 --out data/processed/pipeline_output.csv
-```
-
-## Evaluation workflow
-
-```bash
-python eval/build_golden_set.py --threads data/processed/uber_threads.csv --n 200 --out eval/golden_set_TO_LABEL.csv
-```
-
-Then label the generated CSV and save it as `eval/golden_set.csv`, then run:
-
-```bash
-cd eval
-python run_eval.py --golden golden_set.csv --threads ../data/processed/uber_threads.csv
-```
-
-## Notes
-
-- This project is designed to be easy to understand and explain in interviews or GitHub demos.
-- The retrieval layer uses TF-IDF instead of a heavier vector database to keep the solution lightweight and accessible.
-- Generated datasets, virtual environments, and local secrets should not be pushed to GitHub.
-
-## GitHub-ready checklist
-
-Before pushing:
-
-- keep `.env` out of Git
-- keep `venv/` out of Git
-- avoid committing large raw data files
-- keep only source code, sample data, and documentation
-
-This project is ready to push once the local environment and API key are set up correctly and the sample pipeline runs successfully.
+- keep `.env`, `venv/`, raw data, and generated evaluation files out of Git;
+- run the quickstart from a clean checkout;
+- complete and commit the hand-labeled golden set only if its licensing and
+  privacy review permits it;
+- replace the report's smoke-test status with measured golden-set results.
