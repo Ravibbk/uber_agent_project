@@ -22,6 +22,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 class HistoricalResolutionIndex:
     def __init__(self, threads_df: pd.DataFrame):
         self.df = threads_df.reset_index(drop=True)
+        if self.df.empty:
+            raise ValueError("Historical thread data must contain at least one row.")
         self.vectorizer = TfidfVectorizer(
             max_features=20000, ngram_range=(1, 2), stop_words="english"
         )
