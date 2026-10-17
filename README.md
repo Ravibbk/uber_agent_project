@@ -9,10 +9,6 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
-
-### ⚠️ Independent Portfolio Prototype Disclaimer
-**This project is an independent educational prototype developed for portfolio and AI engineering demonstration purposes (specifically for the FOXO AI Intern role). It is NOT affiliated with, sponsored by, or endorsed by Uber Technologies, Inc. No live customer data or tickets are handled, and no real API connections to Uber systems exist.**
-
 ---
 
 ## 1. Project Overview & Problem Statement
@@ -48,9 +44,9 @@ flowchart TD
 
 ---
 
-## 3. Key Engineering Highlights & FOXO AI Intern Alignment
+## 3. Key Engineering Highlights & AI  Alignment
 
-| FOXO AI Intern Requirement | TraceGuard Implementation |
+| Requirement | TraceGuard Implementation |
 |---|---|
 | **Python Engineering & Maintainability** | Modular architecture, strict type hints, Pydantic request/response schemas, zero unnecessary dependencies. |
 | **AI Evaluation Harnesses** | Versioned benchmark harness (`eval/run_eval.py`) comparing agent against trivial and keyword baselines across accuracy, macro-F1, precision, and recall. |
