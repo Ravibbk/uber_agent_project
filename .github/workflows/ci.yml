@@ -1,0 +1,77 @@
+name: TraceGuard CI & Regression Suite
+
+on:
+  push:
+    branches: [ main, master, "feature/**" ]
+  pull_request:
+    branches: [ main, master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-evaluate:
+    name: Pytest & Deterministic Eval
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build initial thread index fixture
+        run: |
+          python src/data_prep.py --raw data/sample/twcs_sample.csv --out data/processed/uber_threads.csv
+
+      - name: Validate Golden Dataset Schema & Integrity
+        run: |
+          python eval/golden_dataset.py
+
+      - name: Run Pytest Suite (All Unit, Integration & Regression Tests)
+        env:
+          OFFLINE_MODE: "1"
+        run: |
+          pytest -v --tb=short
+
+      - name: Run Deterministic Evaluation Harness
+        env:
+          OFFLINE_MODE: "1"
+        run: |
+          python eval/run_eval.py --judge --output eval/eval_results.json
+
+      - name: Check Safety Regression Guardrail
+        run: |
+          python -c "
+          import json
+          with open('eval/eval_results.json') as f:
+              data = json.load(f)
+          agent_m = data['metrics']['agent']
+          assert agent_m['intent_accuracy'] >= 0.85, f'Intent accuracy regression: {agent_m[\"intent_accuracy\"]}'
+          assert agent_m['escalation_precision'] >= 0.85, f'Escalation precision regression: {agent_m[\"escalation_precision\"]}'
+          print('Safety regression guardrails passed successfully.')
+          "
+
+      - name: Upload Evaluation Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traceguard-eval-results-py${{ matrix.python-version }}
+          path: |
+            eval/eval_results.json
+            eval/golden_v1.csv
+            eval/judge_scores.csv

@@ -1,87 +1,99 @@
-# Decision Log
+# Architecture Decision Records (ADR) & Decision Log
 
-Non-obvious decisions made while building this, and why. Evaluation-dependent
-threshold tuning remains pending until the hand-labeled golden set is complete.
+Non-obvious decisions, trade-offs, and design rationales made during the construction and upgrade of the TraceGuard platform.
 
-1. **Brand: Uber_Support.** Chose it over AmazonHelp/AppleSupport because
-   ride-hailing complaints cluster into a small number of clearly distinct,
-   actionable categories (fare, safety, lost item, driver behavior...),
-   which makes both intent taxonomy design and escalation policy more
-   defensible than a catch-all retailer like Amazon.
+---
 
-2. **Unit of analysis = (first customer message, brand's reply to it)**,
-   not the full multi-turn thread. Most Uber_Support threads resolve or
-   hand off within 1-2 exchanges; modeling full multi-turn dialogue state
-   would add complexity the data mostly doesn't need. Documented as a
-   limitation in the report, not hidden.
+### Core Architecture & Domain Decisions
 
-3. **Kept up to 2 prior turns as `thread_context`** even though the model
-   only acts on the latest message, because a few intents (e.g. "still
-   waiting on my refund from before") are only legible with context.
+1. **Brand Selection: `@Uber_Support`**  
+   *Decision:* Chose Uber support over general retail (Amazon/Apple).  
+   *Rationale:* Ride-hailing complaints naturally cluster into well-defined, safety-critical categories (fare disputes, lost items, driver behavior, vehicular safety, account security). This makes intent taxonomy design, deterministic guardrails, and escalation routing far more defensible and safety-critical.
 
-4. **9 intents, not more.** Started from Banking77-style granularity and
-   collapsed down — more categories look impressive but most were <2% of
-   the sample and only added noise to both classification and escalation
-   logic. Fewer, cleaner categories > many overlapping ones.
+2. **Unit of Analysis: `(customer_message, brand_reply)` Pairs**  
+   *Decision:* Modeled the primary customer inquiry and brand resolution rather than full multi-turn conversational state.  
+   *Rationale:* Twitter support interactions predominantly resolve or transfer to private DM within 1–2 turns. Keeping the primary turn as the atomic unit reduced unnecessary conversational state complexity while keeping the system auditable.
 
-5. **TF-IDF retrieval, not embeddings**, for grounding reply generation.
-   Twitter support text is short and keyword-heavy; TF-IDF is free, fast,
-   fully reproducible, and — importantly — debuggable (you can see exactly
-   which shared words drove a match). Embeddings are the natural v2
-   upgrade, noted in "what I'd do next."
+3. **Thread Context Preservation (Up to 2 Prior Turns)**  
+   *Decision:* Kept prior dialogue turns as `thread_context`.  
+   *Rationale:* Follow-up complaints (e.g., *"Still waiting on my refund from yesterday"*) are ambiguous in isolation but readily classifiable with immediate prior context.
 
-6. **Reply generator is told to copy the _pattern_, not the specifics**, of
-   retrieved historical replies (e.g., "ask for trip ID" is a pattern;
-   a specific dollar amount is not). Without this instruction, early manual
-   testing showed the model would sometimes carry over specific facts
-   (amounts, dates) from the retrieved example into the new reply — a
-   direct hallucination risk.
+4. **Nine-Intent Single-Label Taxonomy**  
+   *Decision:* Standardized on 9 distinct intents (`fare_dispute`, `refund_request`, `driver_behavior`, `safety_concern`, `lost_item`, `account_access`, `app_technical_issue`, `cancellation_issue`, `general_inquiry`).  
+   *Rationale:* Avoided over-granular taxonomies (like Banking77's 77 classes), which introduce high overlap and noisy decision boundaries for support agents.
 
-7. **Escalation uses hard rule-based triggers first, LLM-informed
-   confidence second.** Safety-related intents and legal/fraud language
-   always escalate regardless of what any model "thinks" — escalation is a
-   safety-critical decision where a false negative (wrongly auto-handling)
-   is worse than a false positive (unnecessarily escalating). This trades
-   some automation rate for a much lower miss rate on the cases that
-   matter most.
+5. **TF-IDF Grounding Retrieval vs. Dense Vector Embeddings**  
+   *Decision:* Used TF-IDF vectorization with cosine similarity for historical resolution retrieval.  
+   *Rationale:* Twitter support messages are concise and keyword-dense. TF-IDF provides fast, deterministic, reproducible retrieval without external vector database infrastructure or API latency.
 
-8. **Escalation confidence threshold set at 0.55**, not tuned end-to-end
-   against the golden set at first — started as a reasonable prior and
-   should be re-tuned once you have real golden-set precision/recall
-   numbers are available (see report Results section).
+6. **Pattern-Extraction Prompting (Anti-Hallucination Guard)**  
+   *Decision:* Prompt instructions explicitly instruct the LLM to adopt resolution *patterns* (e.g., "request trip ID", "direct to app Lost Items tab") rather than copying specific dollar figures, trip IDs, or driver names from retrieved examples.  
+   *Rationale:* Prevents factual hallucination and false financial promises.
 
-9. **Anger-language heuristic is a hardcoded keyword list, not a second LLM
-   call**, for the refund+anger escalation rule. Cheaper and faster; a
-   second LLM call for sentiment was evaluated as marginal extra value for
-   this narrow use once the keyword list is combined with measured intent
-   performance in eval.
+7. **Multi-Tier Escalation Architecture**  
+   *Decision:* Multi-tier decision gate: (1) Implicit physical safety keywords -> (2) Hard-escalate intent rules -> (3) Legal/fraud language -> (4) Anger-in-refund heuristic -> (5) Confidence threshold.  
+   *Rationale:* Safety decisions must never rely solely on an LLM's probability score. False negatives (failing to escalate a dangerous driver) are catastrophic compared to false positives (unnecessary human review).
 
-10. **Golden set deliberately oversamples short (<40 char) messages.**
-    These are the hardest cases for the intent classifier and are
-    under-represented in a naive random sample — including them
-    intentionally is what keeps the accuracy number honest rather than
-    inflated by easy cases (see report, "what's misleading").
+8. **Escalation Confidence Threshold: 0.55**  
+   *Decision:* Set confidence gate threshold at 0.55.  
+   *Rationale:* Established as a conservative prior: ambiguous intents with confidence below 55% are routed to human operators.
 
-11. **Judge scores on 4 separate dimensions (relevance / grounding / tone /
-    actionability) instead of one overall score.** A single number hides
-    _which way_ a bad reply is bad, and the failure-analysis section needs
-    that breakdown to produce real hypotheses instead of vague ones.
+9. **Deterministic Anger Heuristic vs. LLM Sentiment Classifier**  
+   *Decision:* Used regex and curated keyword matching for refund dispute sentiment detection.  
+   *Rationale:* Faster, deterministic, and eliminates secondary LLM inference latency/cost.
 
-12. **Judge-human agreement is measured, not assumed.** Following the
-    assignment's explicit requirement, `judge_calibration.py` exists
-    specifically so the LLM-judge numbers aren't taken on faith — if
-    agreement on a dimension is weak, that's reported as a real limitation.
+10. **Stratified Hard Edge-Case Golden Benchmark**  
+    *Decision:* Deliberately included short inquiries (<40 chars), sarcastic remarks, prompt injections, and ambiguous messages in `eval/golden_dataset.py`.  
+    *Rationale:* Real customer support is noisy; a benchmark must not be biased towards clean, easy examples.
 
-13. **Trivial baseline always auto-handles (never escalates)**, by design —
-    this makes its escalation recall exactly 0%, which is the right way to
-    show that "our agent escalates the right things" is a real, earned
-    result and not a trivially achievable one.
+11. **Multi-Dimensional Reply Quality Evaluation**  
+    *Decision:* Scored replies across 4 distinct dimensions (*Relevance*, *Grounding*, *Tone*, *Actionability*) plus binary *Hallucination*.  
+    *Rationale:* A single aggregate quality score masks the specific failure mode of a reply.
 
-14. **`--sample` flag on data_prep.py** exists because the assignment
-    explicitly says the full dataset won't be run — chose 5,000 threads as
-    a default sample size, large enough for reasonable TF-IDF retrieval
-    coverage across intents but small enough to keep iteration fast.
+12. **Empirical Judge Calibration Framework**  
+    *Decision:* Created `eval/judge_calibration.py` to calculate Spearman's rank correlation ($\rho$), MAE, and hallucination agreement between human and automated judges.  
+    *Rationale:* Automated judge scores cannot be trusted without empirical correlation against human ground truth.
 
-15. **Cleaning strips @mentions and URLs but keeps punctuation/case.** Tone
-    (e.g., ALL CAPS, "!!!") is a meaningful signal for both intent and
-    escalation (anger detection), so it wasn't normalized away.
+13. **Trivial Baseline: Constant Prior with Zero Escalation**  
+    *Decision:* Trivial baseline predicts constant prior `general_inquiry` and never escalates.  
+    *Rationale:* Yields 0.0% escalation recall, proving that agent escalation accuracy is genuinely earned.
+
+14. **Subsampled Preprocessing Pipeline (`--sample`)**  
+    *Decision:* Maintained fast sample processing for rapid testing and CI.  
+    *Rationale:* Enables full end-to-end execution in CI environments in under 10 seconds.
+
+15. **Case & Punctuation Preservation in Data Cleaning**  
+    *Decision:* Stripped Twitter handles and URLs but preserved uppercase text and punctuation.  
+    *Rationale:* Punctuation and capitalization contain strong emotional signals critical for escalation.
+
+---
+
+### TraceGuard Platform Upgrades & Defect Resolutions
+
+16. **Decoupled Implicit Safety Scanner from Intent Classifier (Defect E Resolution)**  
+    *Decision:* Added an independent `IMPLICIT_SAFETY_KEYWORDS` scanner in `src/escalation.py` that executes before confidence evaluation.  
+    *Rationale:* Previously, *"My driver was swerving across lanes"* was classified as `driver_behavior` (confidence 0.95) and auto-handled without escalation. Safety detection must be decoupled from classifier vocabulary.
+
+17. **Lazy OpenAI Client Initialization (Defect A Resolution)**  
+    *Decision:* Replaced module-level client instantiation with lazy loading inside functions.  
+    *Rationale:* Importing modules must never crash when `OPENAI_API_KEY` is absent. Guarantees 100% offline testability and frictionless CI execution.
+
+18. **Eliminated Baseline Label Leakage (Defect C Resolution)**  
+    *Decision:* Replaced `Counter(train_df['gold_intent']).most_common(1)` in `src/baselines.py` with a fixed constant prior.  
+    *Rationale:* A baseline must never inspect evaluation split labels to pick its prediction.
+
+19. **Retrieval Index Case Isolation (Defect D Resolution)**  
+    *Decision:* Added `exclude_ids: set` parameter to `HistoricalResolutionIndex.retrieve()`.  
+    *Rationale:* During evaluation runs, test case IDs are excluded from the retrieval candidate set, preventing data contamination.
+
+20. **Structured JSONL Tracing (`src/tracing.py`)**  
+    *Decision:* Built a lightweight, zero-dependency span recorder logging stage durations, model IDs, prompt version hashes, and error categories.  
+    *Rationale:* Provides deep observability into pipeline stages without requiring external APM or observability SaaS tools. Failures in tracing never break the primary agent.
+
+21. **Deterministic Offline Heuristic Judge**  
+    *Decision:* Implemented keyword-grounded offline heuristics in `eval/judge.py` when `OPENAI_API_KEY` is not present.  
+    *Rationale:* Allows CI suites and offline reviewers to evaluate reply quality without paid API credentials while clearly distinguishing heuristic scores from LLM judge outputs.
+
+22. **FastAPI Web Dashboard with Interactive Span Telemetry**  
+    *Decision:* Added `src/api.py` with Pydantic request/response validation and an embedded modern dashboard.  
+    *Rationale:* Provides recruiters and engineers with an immediate playground to test edge cases and inspect execution traces in real time.

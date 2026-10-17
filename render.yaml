@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: traceguard-platform
+    env: python
+    buildCommand: "pip install -r requirements.txt && python src/data_prep.py --raw data/sample/twcs_sample.csv --out data/processed/uber_threads.csv"
+    startCommand: "uvicorn src.api:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: OFFLINE_MODE
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.11.9"

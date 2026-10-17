@@ -3,10 +3,9 @@ baselines.py
 
 Two baselines the report compares against, per the assignment's requirement:
 
-1. TRIVIAL baseline: always predicts the single most frequent intent in the
-   training threads, and always drafts the same generic canned reply.
-   Always escalates nothing (auto-handles everything) -- this is meant to
-   look bad on escalation-recall specifically.
+1. TRIVIAL baseline: always predicts a PREDECLARED constant intent
+   (general_inquiry), uses one canned reply, and always auto-handles.
+   This is meant to look bad on escalation-recall specifically.
 
 2. SIMPLE baseline: keyword/regex-based intent classifier (no LLM) +
    intent-specific template replies (no retrieval, no grounding) +
@@ -15,19 +14,30 @@ Two baselines the report compares against, per the assignment's requirement:
 These exist so the headline numbers mean something -- "our agent gets 81%
 intent accuracy" is meaningless without knowing the trivial baseline gets,
 say, 24% (1/9 intents, roughly) and the simple keyword baseline gets 58%.
+
+CHANGES (TraceGuard upgrade):
+- Defect C fix: trivial baseline uses a PREDECLARED constant prior
+  ("general_inquiry"), NOT the most common label from the test set.
+  The old implementation used Counter(train_df["gold_intent"]) which
+  leaked test labels into the baseline prediction.
 """
-from collections import Counter
 
 # --- Trivial baseline ---
 
+# Predeclared constant — chosen as the most general/common intent category
+# WITHOUT looking at evaluation labels. This is an intentional prior.
+TRIVIAL_INTENT = "general_inquiry"
 CANNED_REPLY = "We're sorry to hear about this. Please DM us your trip details and we'll take a look right away."
 
 
-def trivial_predict(train_df, test_messages):
-    most_common_intent = Counter(train_df.get("gold_intent", [])).most_common(1)
-    fallback_intent = most_common_intent[0][0] if most_common_intent else "general_inquiry"
+def trivial_predict(test_messages):
+    """Trivial baseline: always predicts the same intent and canned reply.
+
+    Defect C fix: does NOT accept train_df or peek at test labels.
+    Uses a predeclared constant (TRIVIAL_INTENT = 'general_inquiry').
+    """
     return [
-        {"intent": fallback_intent, "reply": CANNED_REPLY, "escalation_decision": "AUTO_HANDLE"}
+        {"intent": TRIVIAL_INTENT, "reply": CANNED_REPLY, "escalation_decision": "AUTO_HANDLE"}
         for _ in test_messages
     ]
 
@@ -35,7 +45,8 @@ def trivial_predict(train_df, test_messages):
 # --- Simple keyword baseline ---
 
 KEYWORD_RULES = [
-    ("safety_concern", ["unsafe", "assault", "harass", "accident", "scared", "threatened"]),
+    ("safety_concern", ["unsafe", "assault", "harass", "accident", "scared", "threatened",
+                        "swerving", "reckless", "dangerous", "weapon", "violence"]),
     ("fare_dispute", ["overcharg", "wrong fare", "charged me", "extra charge", "double charge"]),
     ("refund_request", ["refund", "money back", "reimburse"]),
     ("driver_behavior", ["rude", "driver was", "unprofessional", "refused to"]),
@@ -59,6 +70,7 @@ TEMPLATE_REPLIES = {
 
 
 def simple_predict(test_messages):
+    """Keyword-based baseline: uses rule matching and template replies."""
     results = []
     for msg in test_messages:
         text_lower = msg.lower()

@@ -1,17 +1,61 @@
+# Virtual environment
+.venv/
 venv/
+env/
+ENV/
+
+# Python cache & build
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & type checking
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+
+# Environment & credentials (CRITICAL: never commit API keys or secrets)
 .env
-data/raw/*.csv
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Raw large datasets (do not commit 3M raw Kaggle tweets)
 data/raw/
 data/processed/*.csv
+!data/processed/uber_threads.csv
 !data/sample/twcs_sample.csv
+
+# Telemetry & runtime traces (keep traces local)
+traces/
+eval/traces/
+*.log
+
+# Evaluation outputs
+# Golden dataset v1 and sample results are tracked as fixtures; temporary calibration runs are kept local
 eval/golden_set_TO_LABEL.csv
 eval/golden_set_PREFILLED.csv
-eval/golden_set.csv
-eval/judge_scores.csv
-eval/human_judge_subset.csv
-!eval/golden_set.csv
-!eval/judge_scores.csv
-!eval/human_judge_subset.csv
-.DS_Store
